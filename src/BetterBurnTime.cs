@@ -7,12 +7,12 @@ namespace BetterBurnTime
     public class BetterBurnTime : MonoBehaviour
     {
         // Treat any acceleration smaller than this as zero.
-        private static readonly double ACCELERATION_EPSILON = 0.000001;
+        private const double ACCELERATION_EPSILON = 0.000001;
 
         // Kerbin gravity, needed for working with Isp
-        private static readonly double KERBIN_GRAVITY = 9.81;
+        public const double KERBIN_GRAVITY = 9.81;
 
-        private static readonly string ESTIMATED_BURN_LABEL = "Est. Burn: ";
+        private const string ESTIMATED_BURN_LABEL = "Est. Burn: ";
 
         // Displayed in place of burn time when it's an EVA kerbal.
         private static readonly string EVA_KERBAL_LABEL = string.Empty;
@@ -76,11 +76,39 @@ namespace BetterBurnTime
                     dVrequired = ClosestApproachTracker.Velocity;
                     if (double.IsNaN(dVrequired))
                     {
-                        // No closest-approach info available either, use the maneuver dV remaining.
+                        // No closest-approach info is available either.  At this point, we've exhausted all
+                        // of our special-tracking-burn-information options (impact, closest approach), so
+                        // we won't show any burn information or countdown.  (Before KSP 1.5, we would have
+                        // checked for a maneuver node, and if present, we would have shown a countdown
+                        // and our revised burn time estimate.  KSP 1.5, however, introduced drastically improved
+                        // burn-time indication in stock, so there's no point in trying to compete with that--
+                        // it's good enough, so leave it alone.
+                        shouldDisplayCountdown = false;
+
+                        // Do we have a maneuver node?
                         dVrequired = BurnInfo.DvRemaining;
-                        timeUntil = SecondsUntilNode();
-                        shouldDisplayCountdown = true;
-                        burnType = BetterBurnTimeData.BurnType.Maneuver;
+                        if (double.IsNaN(dVrequired))
+                        {
+                            // No, there's no maneuver node.
+                            burnType = BetterBurnTimeData.BurnType.None;
+                            // If we've got an upcoming atmosphere transition, include that info.
+                            customDescription = AtmosphereTracker.Description;
+                            if (customDescription == null)
+                            {
+                                customDescription = GeosyncTracker.Description;
+                                timeUntil = 0;
+                            }
+                            else
+                            {
+                                timeUntil = AtmosphereTracker.TimeUntil;
+                            }
+                        }
+                        else
+                        {
+                            // Yep, there's a maneuver node.
+                            timeUntil = SecondsUntilNode();
+                            burnType = BetterBurnTimeData.BurnType.Maneuver;
+                        }
                     }
                     else
                     {
@@ -101,11 +129,31 @@ namespace BetterBurnTime
                     burnType = BetterBurnTimeData.BurnType.Impact;
                 }
 
+                if (FlightGlobals.ActiveVessel == null)
+                {
+                    BurnInfo.Countdown = string.Empty;
+                    if (customDescription == null) BurnInfo.AlternateDisplayEnabled = false;
+                    return;
+                }
+
+                if (double.IsNaN(dVrequired) && !double.IsNaN(timeUntil))
+                {
+                    // Special case of knowing a time until an event, but there's no dV associated
+                    // with it and therefore no burn display.
+                    BurnInfo.Duration = string.Empty;
+                    BurnInfo.TimeUntil = customDescription;
+                    BurnInfo.AlternateDisplayEnabled = true;
+                    BurnInfo.Countdown = string.Empty;
+                    return;
+                }
+
                 // At this point, either we have a dVrequired or not. If we have one, we might
                 // have a description (meaning it's one of our custom trackers from this mod)
                 // or we might not (meaning "leave it alone at let the stock game decide what to say").
 
-                if (double.IsNaN(dVrequired) || (FlightGlobals.ActiveVessel == null))
+                if ((burnType == BetterBurnTimeData.BurnType.Maneuver)
+                    || double.IsNaN(dVrequired)
+                    || (FlightGlobals.ActiveVessel == null))
                 {
                     BurnInfo.Countdown = string.Empty;
                     if (customDescription == null) BurnInfo.AlternateDisplayEnabled = false;

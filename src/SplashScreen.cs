@@ -25,9 +25,12 @@ namespace BetterBurnTime
             "FullMetalMachinist",   // for the countdown idea
             "Gen. Jack D. Ripper",  // suggestions around the countdown
             "NathanKell",           // just 'coz he's awesome :-)
+            "Rodger",               // first bug report for 1.6.X01
             "sarbian",              // helpful responses to modding questions
             "SirDiazo",             // code example for calculating vessel height
-            "smjjames"              // suggestion about tweaking time formats
+            "smjjames",             // suggestion about tweaking time formats
+            "linuxgurugamer",       // pointed out that I'm targeting the wrong .NET version
+            "Nik Power"             // provided vital repro case to fix a bug in 1.8
         };
 
         internal void Awake()
